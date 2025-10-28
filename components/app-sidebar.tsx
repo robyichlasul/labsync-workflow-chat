@@ -2,26 +2,21 @@
 
 import * as React from "react"
 import Link from "next/link"
-import Image from "next/image"
-import { useSession } from "@/lib/auth-client"
+import { useUser } from "@clerk/nextjs"
 import {
-  IconCamera,
-  IconChartBar,
-  IconDashboard,
-  IconDatabase,
-  IconFileAi,
-  IconFileDescription,
-  IconFileWord,
-  IconFolder,
-  IconHelp,
-  IconListDetails,
-  IconReport,
-  IconSearch,
-  IconSettings,
-  IconUsers,
-} from "@tabler/icons-react"
+  MessageCircle,
+  Bot,
+  Users,
+  Calendar,
+  FileText,
+  Settings,
+  HelpCircle,
+  Search,
+  BarChart3,
+  Shield,
+  Upload,
+} from "lucide-react"
 
-import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
@@ -35,78 +30,50 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-const staticData = {
+const labsyncNavData = {
   navMain: [
     {
       title: "Dashboard",
-      url: "#",
-      icon: IconDashboard,
+      url: "/dashboard",
+      icon: BarChart3,
     },
     {
-      title: "Lifecycle",
-      url: "#",
-      icon: IconListDetails,
+      title: "Chat",
+      url: "/dashboard/chat",
+      icon: MessageCircle,
     },
     {
-      title: "Analytics",
-      url: "#",
-      icon: IconChartBar,
+      title: "AI Assistant",
+      url: "/dashboard/ai-chat",
+      icon: Bot,
     },
     {
-      title: "Projects",
-      url: "#",
-      icon: IconFolder,
+      title: "Status Updates",
+      url: "/dashboard/status",
+      icon: Users,
     },
     {
-      title: "Team",
-      url: "#",
-      icon: IconUsers,
+      title: "Jadwal Lab",
+      url: "/dashboard/schedule",
+      icon: Calendar,
     },
-  ],
-  navClouds: [
     {
-      title: "Capture",
-      icon: IconCamera,
-      isActive: true,
-      url: "#",
+      title: "File Sharing",
+      url: "/dashboard/files",
+      icon: Upload,
+    },
+    {
+      title: "Manajemen User",
+      url: "/dashboard/users",
+      icon: Shield,
       items: [
         {
-          title: "Active Proposals",
-          url: "#",
+          title: "Daftar User",
+          url: "/dashboard/users",
         },
         {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Proposal",
-      icon: IconFileDescription,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Prompts",
-      icon: IconFileAi,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
+          title: "Role Management",
+          url: "/dashboard/users/roles",
         },
       ],
     },
@@ -114,50 +81,33 @@ const staticData = {
   navSecondary: [
     {
       title: "Settings",
-      url: "#",
-      icon: IconSettings,
+      url: "/dashboard/settings",
+      icon: Settings,
     },
     {
-      title: "Get Help",
-      url: "#",
-      icon: IconHelp,
+      title: "Help",
+      url: "/dashboard/help",
+      icon: HelpCircle,
     },
     {
       title: "Search",
-      url: "#",
-      icon: IconSearch,
-    },
-  ],
-  documents: [
-    {
-      name: "Data Library",
-      url: "#",
-      icon: IconDatabase,
-    },
-    {
-      name: "Reports",
-      url: "#",
-      icon: IconReport,
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-      icon: IconFileWord,
+      url: "/dashboard/search",
+      icon: Search,
     },
   ],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { data: session } = useSession()
-  
-  const userData = session?.user ? {
-    name: session.user.name || "User",
-    email: session.user.email,
-    avatar: session.user.image || "/codeguide-logo.png",
+  const { user } = useUser()
+
+  const userData = user ? {
+    name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || user.emailAddresses[0]?.emailAddress || "User",
+    email: user.emailAddresses[0]?.emailAddress || "",
+    avatar: user.imageUrl,
   } : {
     name: "Guest",
-    email: "guest@example.com", 
-    avatar: "/codeguide-logo.png",
+    email: "guest@example.com",
+    avatar: undefined,
   }
 
   return (
@@ -169,18 +119,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <Link href="/">
-                <Image src="/codeguide-logo.png" alt="CodeGuide" width={32} height={32} className="rounded-lg" />
-                <span className="text-base font-semibold font-parkinsans">CodeGuide</span>
+              <Link href="/dashboard">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg flex items-center justify-center">
+                    <MessageCircle className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-base font-semibold">Labsync</span>
+                </div>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={staticData.navMain} />
-        <NavDocuments items={staticData.documents} />
-        <NavSecondary items={staticData.navSecondary} className="mt-auto" />
+        <NavMain items={labsyncNavData.navMain} />
+        <NavSecondary items={labsyncNavData.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={userData} />

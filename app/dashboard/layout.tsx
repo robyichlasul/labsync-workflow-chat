@@ -1,4 +1,6 @@
 import { cookies } from "next/headers"
+import { auth } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
 
 import {
   SidebarInset,
@@ -14,6 +16,12 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
+  const { userId } = auth();
+
+  if (!userId) {
+    redirect("/sign-in");
+  }
+
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get("sidebar_state")?.value === "true"
 
