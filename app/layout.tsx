@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Parkinsans } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
@@ -14,10 +14,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const parkinsans = Parkinsans({
-  variable: "--font-parkinsans",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Labsync Chat - Laboratorium Workflow",
@@ -34,7 +30,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="id" suppressHydrationWarning>
         <body
-          className={`${geistSans.variable} ${geistMono.variable} ${parkinsans.variable} antialiased`}
+          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
           <ThemeProvider
             attribute="class"
