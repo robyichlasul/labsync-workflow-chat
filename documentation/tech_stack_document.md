@@ -1,90 +1,109 @@
 # Tech Stack Document
 
-This document explains the key technologies chosen for the **codeguide-starter** project. It’s written in everyday language so anyone—technical or not—can understand why each tool was picked and how it supports the application.
+This document outlines the key technologies chosen for the **Labsync Chat Workflow** application. The goal is to explain each part in everyday language so that non-technical stakeholders can understand why we picked them and how they work together.
 
 ## 1. Frontend Technologies
-The frontend is everything the user sees and interacts with. For this project, we’ve used:
+
+These are the tools and libraries we use to build everything the user sees and interacts with in their browser.
 
 - **Next.js (App Router)**
-  - A React framework that makes page routing, server-side rendering, and API routes very simple.
-  - Enhances user experience by pre-rendering pages on the server or at build time, leading to faster initial load.
-- **React 18**
-  - The underlying library for building user interfaces with reusable components.
-  - Provides a smooth, interactive experience thanks to its virtual DOM and modern hooks.
-- **TypeScript**
-  - A superset of JavaScript that adds types (labels for data).
-  - Helps catch errors early during development and makes the code easier to maintain.
-- **CSS (globals.css & theme.css)**
-  - **globals.css** applies base styles (fonts, colors, resets) across the entire app.
-  - **dashboard/theme.css** defines the look and feel specific to the dashboard area.
-  - This separation keeps styles organized and avoids accidental style conflicts.
+  - A React-based framework that handles page routing, server-side rendering, and static site generation. It gives us a fast, SEO-friendly site and makes it easy to write both frontend and backend code in one place.
+- **Shadcn/ui components**
+  - A set of pre-styled React components (buttons, forms, modals, etc.) that look sharp and work well together. They help us build a professional interface quickly without designing every element from scratch.
+- **Tailwind CSS**
+  - A utility-first styling framework. Instead of writing custom CSS files, we use small, descriptive class names directly in our components to control colors, spacing, fonts, and layouts. This keeps our styling consistent and easy to maintain.
+- **next-themes**
+  - A simple theme manager for Next.js. It lets end users switch between light mode and dark mode. The switch happens instantly without a full page reload, improving the look and feel.
+- **Clerk React SDK**
+  - Provides out-of-the-box login, sign-up, and user profile components. We plug these into our pages to get a secure, polished authentication flow without custom building forms or session logic.
 
-By combining these tools, we have a clear structure (Next.js folders for pages and layouts), safer code (TypeScript), and flexible styling with vanilla CSS.
+How these choices enhance user experience:
+- Consistency: Shadcn/ui + Tailwind ensures a unified look across the app.
+- Responsiveness: Next.js’s hybrid rendering gives snappy page loads and instant interactions.
+- Accessibility & Theming: Pre-built components and theme support mean the app is comfortable to use for all users, day or night.
 
 ## 2. Backend Technologies
-The backend handles data, user accounts, and the logic behind the scenes. Our choices here are:
+
+These tools handle data storage, user authentication, and server-side logic.
 
 - **Next.js API Routes**
-  - Allows us to write server-side code (`route.ts` files) alongside our frontend in the same project.
-  - Runs on Node.js, so we can handle requests like sign-up, sign-in, and data fetching in one place.
-- **Node.js Runtime**
-  - The JavaScript environment on the server that executes our API routes.
-- **bcrypt** (npm package)
-  - A library for hashing passwords securely before storing them.
-  - Ensures that even if someone got access to our data, raw passwords aren’t visible.
-- **(Optional) NextAuth.js or JWT**
-  - While this starter kit shows a custom authentication flow, it can easily integrate services like NextAuth.js for email-based login or JWT (JSON Web Tokens) for stateless sessions.
+  - Let us write server-side code in the same project as our frontend. We use these routes to handle chat messages, status posts, file uploads, and the AI chatbot logic.
+- **Clerk Node SDK**
+  - Manages user sessions and roles on the server. Every incoming request can be checked to see who the user is and what they’re allowed to access.
+- **Supabase**
+  - A managed service built on PostgreSQL. We use it for:
+    - **Database**: Storing users, roles, messages, statuses, and lab schedules.
+    - **Realtime**: Pushing new chat messages and status updates instantly to all connected clients.
+    - **Storage**: Handling file uploads (PDFs, images, spreadsheets) with secure access controls.
+- **Drizzle ORM**
+  - A TypeScript-friendly library for defining database tables and running queries. It ensures our code matches the database structure and reduces the chance of runtime errors.
 
-These components work together to receive user credentials, verify or store them securely, manage sessions or tokens, and deliver protected data back to the frontend.
+How they work together:
+1. A user sends a chat message in the UI.
+2. The Next.js API route receives it and verifies the user via Clerk.
+3. The route uses Drizzle to write the message into Supabase.
+4. Supabase Realtime notifies all clients to display the new message immediately.
 
 ## 3. Infrastructure and Deployment
-Infrastructure covers where and how we host the app, as well as how changes get delivered:
 
-- **Git & GitHub**
-  - Version control system (Git) and remote hosting (GitHub) keep track of all code changes and allow team collaboration.
-- **Vercel (or Netlify)**
-  - A popular hosting service optimized for Next.js, with one-click deployments and global content delivery.
-  - Automatically rebuilds and deploys the site whenever code is pushed to the main branch.
-- **GitHub Actions (CI/CD)**
-  - Automates tasks like linting (ESLint), formatting (Prettier), and running any tests you add.
-  - Ensures that only clean, tested code goes live.
+This section covers where the code lives, how we deploy it, and how we keep everything running smoothly.
 
-Together, these tools provide a reliable, scalable setup where every code change is tested and deployed quickly, with minimal manual work.
+- **Version Control: Git & GitHub**
+  - All code is stored in a Git repository on GitHub. This lets multiple developers collaborate, track changes, and review each other’s work.
+- **Continuous Deployment: Vercel**
+  - When code is pushed to the main branch on GitHub, Vercel automatically builds and deploys the app. This gives us instant updates in production and a global Content Delivery Network (CDN) for fast page delivery.
+- **Local Development: Docker (optional)**
+  - Developers can spin up a local PostgreSQL instance with Docker to work offline. This mirrors the production database setup and ensures compatibility before deploying.
+
+How these choices contribute to reliability and scalability:
+- Automatic builds and deploys reduce human error.
+- Vercel’s serverless functions scale up or down based on traffic.
+- GitHub collaboration features enforce code quality through pull requests and reviews.
 
 ## 4. Third-Party Integrations
-While this starter kit is minimal by design, it already includes or can easily add:
 
-- **bcrypt**
-  - For secure password hashing (included as an npm dependency).
-- **NextAuth.js** (optional)
-  - A full-featured authentication library supporting email/password, OAuth, and more.
-- **Sentry or LogRocket** (optional)
-  - For real-time error tracking and performance monitoring in production.
+These external services add specialized features so we don’t have to build everything from scratch.
 
-These integrations help extend the app’s capabilities without building every feature from scratch.
+- **Clerk** (Authentication & Role Management)
+  - Handles user sign-up, login, password reset, and multi-factor authentication. Also manages user roles (owner, manager, staff) for access control.
+- **Supabase** (Database, Realtime, Storage)
+  - Provides a single platform for data storage, live updates, and file hosting. We benefit from built-in security rules and a generous free tier.
+- **OpenAI API** (AI Chatbot)
+  - Powers the AI assistant. Our application sends user questions and relevant lab data to OpenAI, which returns clear, context-aware answers.
+
+Benefits:
+- Faster development by using battle-tested services.
+- Lower ongoing maintenance since updates and scaling are handled by the providers.
 
 ## 5. Security and Performance Considerations
-We’ve baked in several measures to keep users safe and the app running smoothly:
 
-Security:
-- Passwords are never stored in plain text—bcrypt hashes them with a random salt.
-- API routes can implement CSRF protection and input validation to block malicious requests.
-- Session tokens or cookies are marked secure and HttpOnly to prevent theft via JavaScript.
+We’ve built in multiple layers of protection and speed optimizations to ensure a smooth, safe user experience.
 
-Performance:
-- Server-side rendering (SSR) and static site generation (SSG) in Next.js deliver pages faster.
-- Code splitting and lazy-loaded components ensure users only download what they need.
-- Global CSS and theme files are small and cached by the browser for quick repeat visits.
+Security Measures:
+- **Authentication & Authorization**: Clerk verifies every request. Role data is enforced both in our API routes and at the database level using Supabase Row Level Security (RLS).
+- **Data Protection**: All traffic is encrypted via HTTPS. File uploads are scoped by user and conversation to prevent unauthorized access.
+- **Environment Variables**: Secrets (API keys, database URLs) are stored securely and never exposed in the frontend code.
 
-These strategies work together to give users a fast, secure experience every time.
+Performance Optimizations:
+- **Server-Side Rendering & Static Pages**: Next.js renders public pages ahead of time for faster load.
+- **Realtime Updates**: Supabase Realtime pushes only the changed data, avoiding full-page refreshes or heavy polling.
+- **CDN Caching**: Vercel’s CDN caches static assets (JavaScript, CSS, images) close to the user for quick downloads.
+- **Code Splitting**: Next.js automatically splits code by page, sending only the JavaScript needed for the current view.
 
 ## 6. Conclusion and Overall Tech Stack Summary
-In building **codeguide-starter**, we chose technologies that:
 
-- Align with modern web standards (Next.js, React, TypeScript).
-- Provide a clear, file-based project structure for rapid onboarding.
-- Offer built-in support for server-side rendering, API routes, and static assets.
-- Emphasize security through password hashing, session management, and safe defaults.
-- Enable easy scaling and future enhancements via modular code and optional integrations.
+We’ve chosen a modern, cohesive set of tools to build the Labsync Chat Workflow application:
 
-This stack strikes a balance between simplicity for newcomers and flexibility for experienced teams. It accelerates development of a secure authentication flow and a polished dashboard, while leaving room to plug in databases, test suites, and advanced features as the project grows.
+- **Frontend**: Next.js + React, shadcn/ui, Tailwind CSS, next-themes, Clerk React SDK
+- **Backend**: Next.js API routes, Clerk Node SDK, Supabase (Postgres, Realtime, Storage), Drizzle ORM
+- **Infrastructure**: GitHub & Git, Vercel for CI/CD and hosting, Docker for local development
+- **Integrations**: Clerk for authentication, Supabase for data and file storage, OpenAI for AI-powered assistance
+- **Security & Performance**: RLS policies, HTTPS, CDN caching, serverless scaling, real-time subscriptions, environment variable safety
+
+This stack aligns perfectly with our goals:
+- **Collaboration**: Real-time chat and status feeds keep teams in sync.
+- **Security**: Role-based access at every layer protects sensitive data.
+- **Scalability**: Serverless infrastructure and managed services handle growing usage.
+- **User Experience**: A polished, responsive interface with dark mode and instant updates.
+
+By combining these technologies, we deliver a robust, maintainable, and user-friendly platform that can evolve as Labsync’s needs grow.

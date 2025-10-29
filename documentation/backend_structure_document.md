@@ -1,179 +1,214 @@
 # Backend Structure Document
 
-This document outlines the backend architecture, hosting, and infrastructure for the **codeguide-starter** project. It uses plain language so anyone can understand how the backend is set up and how it supports the application.
+## Backend Architecture
 
-## 1. Backend Architecture
+We use a modern, serverless-friendly approach based on Next.js with the App Router. Key design patterns and frameworks:
 
-- **Framework and Design Pattern**
-  - We use **Next.js API Routes** to handle all server-side logic. These routes live alongside the frontend code in the same repository, making development and deployment simpler.
-  - The backend follows a **layered pattern**:
-    1. **API Layer**: Receives requests (login, registration, data fetch).  
-    2. **Service Layer**: Contains the core business logic (user validation, password hashing).  
-    3. **Data Access Layer**: Talks to the database via a simple ORM (e.g., Prisma or TypeORM).
+- **Next.js App Router** for routing, server-side rendering, and API routes.  
+- **API Routes** (serverless functions) to handle backend logic without managing separate servers.  
+- **Component-driven UI** (shadcn/ui + Tailwind) ensures a clean separation between frontend and backend concerns.  
+- **Drizzle ORM** for type-safe database interactions, reducing runtime errors and speeding up development.
 
-- **Scalability**
-  - Stateless API routes can scale horizontally—new instances can spin up on demand.  
-  - We can add caching or a message queue (e.g., Redis or RabbitMQ) without changing the core code.
+How this supports our goals:
 
-- **Maintainability**
-  - Code for each feature is grouped by route (authentication, dashboard).  
-  - A service layer separates complex logic from request handling.
+- **Scalability:** Serverless functions on Vercel auto-scale with user demand. Supabase’s managed Postgres scales vertically and distributes read replicas.  
+- **Maintainability:** Clear separation between API routes, utility libraries, and UI components. Type safety from Drizzle makes refactoring safer.  
+- **Performance:** Edge-hosted functions on Vercel, global CDN for static assets, and Supabase Realtime push updates to clients without polling.
 
-- **Performance**
-  - Lightweight Node.js handlers keep response times low.  
-  - Future use of database connection pooling and Redis for caching repeated queries.
+## Database Management
 
-## 2. Database Management
+We rely on Supabase, which offers a managed PostgreSQL database (SQL) plus storage and real-time features:
 
-- **Database Choice**
-  - We recommend **PostgreSQL** for structured data and reliable transactions.  
-  - In-memory caching can be added later with **Redis** for session tokens or frequently read data.
+- **SQL Database (PostgreSQL)**  
+  • Tables for users, roles, messages, statuses, comments, and lab schedules.  
+  • Drizzle ORM schema definitions and migrations for type safety.  
+- **Realtime Subscriptions**  
+  • Built-in websockets let clients subscribe to table changes (new chat messages, status updates) in real time.  
+- **Supabase Storage**  
+  • Secure object storage for files (PDFs, images, spreadsheets).  
+  • Row-Level Security (RLS) policies ensure only authorized users can upload or download.
 
-- **Data Storage and Access**
-  - Use an ORM like **Prisma** or **TypeORM** to map JavaScript/TypeScript objects to database tables.
-  - Connection pooling ensures efficient use of database connections under load.
-  - Migrations track schema changes over time, keeping development, staging, and production in sync.
+Data is organized into logical tables, accessed via Drizzle or Supabase client libraries. We enforce RLS at the database level and use Clerk metadata for user roles.
 
-- **Data Practices**
-  - Passwords are never stored in plain text—they are salted and hashed with **bcrypt** before saving.
-  - All outgoing data is typed and validated to prevent malformed records.
+## Database Schema
 
-## 3. Database Schema
+### Human-Readable Overview
 
-### Human-Readable Format
-
-- **Users**
-  - **id**: Unique identifier  
-  - **email**: User’s email address (unique)  
-  - **password_hash**: Securely hashed password  
-  - **created_at**: Account creation timestamp
-
-- **Sessions**
-  - **id**: Unique session record  
-  - **user_id**: Links to a user  
-  - **token**: Random string for authentication  
-  - **expires_at**: When the token stops working  
-  - **created_at**: When the session was created
-
-- **DashboardItems** *(optional for dynamic data)*
-  - **id**: Unique record  
-  - **title**: Item title  
-  - **content**: Item details  
-  - **created_at**: When the item was added
+- **users**: User profile synced from Clerk (id, email, name, avatar).  
+- **roles**: Predefined roles (owner, manager, staff).  
+- **user_roles**: Assigns one or more roles to each user.  
+- **conversations**: Chat threads between users or groups.  
+- **messages**: Individual chat messages linked to a conversation and sender.  
+- **statuses**: Social feed posts (text, media URL, author, visibility).  
+- **status_comments**: Comments on each status update.  
+- **lab_schedules**: Records of lab events or shifts (title, date, participants).
 
 ### SQL Schema (PostgreSQL)
+
 ```sql
--- Users table
+-- users table (synced from Clerk)
 CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
+  id           UUID PRIMARY KEY,
+  email        TEXT UNIQUE NOT NULL,
+  full_name    TEXT,
+  avatar_url   TEXT,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Sessions table
-CREATE TABLE sessions (
-  id SERIAL PRIMARY KEY,
-  user_id INT REFERENCES users(id) ON DELETE CASCADE,
-  token VARCHAR(255) UNIQUE NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
+CREATE TABLE roles (
+  id   SERIAL PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL
 );
 
--- Dashboard items table
-CREATE TABLE dashboard_items (
-  id SERIAL PRIMARY KEY,
-  title TEXT NOT NULL,
-  content TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+CREATE TABLE user_roles (
+  user_id UUID REFERENCES users(id),
+  role_id INTEGER REFERENCES roles(id),
+  PRIMARY KEY (user_id, role_id)
 );
-```  
 
-## 4. API Design and Endpoints
+CREATE TABLE conversations (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT,
+  is_group    BOOLEAN DEFAULT FALSE,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
 
-- **Approach**: We follow a **RESTful** style, grouping related endpoints under `/api` directories.
+CREATE TABLE messages (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id UUID REFERENCES conversations(id),
+  sender_id       UUID REFERENCES users(id),
+  content         TEXT,
+  media_url       TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
 
-- **Key Endpoints**
-  - `POST /api/auth/register`  
-    • Accepts `{ email, password }`  
-    • Creates a new user and issues a session token  
-  - `POST /api/auth/login`  
-    • Accepts `{ email, password }`  
-    • Verifies credentials and returns a session token  
-  - `POST /api/auth/logout`  
-    • Invalidates the session token on the server  
-  - `GET /api/dashboard/data`  
-    • Requires a valid session  
-    • Returns user-specific data or dashboard items  
+CREATE TABLE statuses (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  author_id  UUID REFERENCES users(id),
+  text       TEXT,
+  media_url  TEXT,
+  visibility TEXT CHECK (visibility IN ('public','private','role-based')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-- **Communication**
-  - Frontend sends JSON requests; backend replies with JSON and appropriate HTTP status codes.  
-  - Protected routes check for a valid session token (in cookies or Authorization header).
+CREATE TABLE status_comments (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  status_id  UUID REFERENCES statuses(id),
+  author_id  UUID REFERENCES users(id),
+  text       TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-## 5. Hosting Solutions
+CREATE TABLE lab_schedules (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title       TEXT,
+  description TEXT,
+  start_time  TIMESTAMPTZ,
+  end_time    TIMESTAMPTZ,
+  created_by  UUID REFERENCES users(id)
+);
+```
 
-- **Cloud Provider**:  
-  - **Vercel** (recommended) offers seamless Next.js deployments, auto-scaling, and built-in CDN.  
-  - Alternatively, **Netlify** or any Node.js-capable host will work.
+## API Design and Endpoints
 
-- **Benefits**
-  - **Reliability**: Global servers and failover across regions.  
-  - **Scalability**: Auto-scale serverless functions based on traffic.  
-  - **Cost-Effectiveness**: Pay-per-use model means low cost for small projects.
+We use Next.js API Routes to create RESTful endpoints. Major routes include:
 
-## 6. Infrastructure Components
+- **/api/auth/** – Handled by Clerk middleware for sign-in, sign-up, session checks.  
+- **/api/chat/conversations**  
+  • GET: List user’s conversations.  
+  • POST: Create a new conversation.  
+- **/api/chat/messages**  
+  • GET: Fetch messages for a conversation.  
+  • POST: Send a new message.  
+- **/api/status**  
+  • GET: Fetch status feed (with real-time subscriptions).  
+  • POST: Create a new status update.  
+- **/api/status/comments**  
+  • POST: Add a comment to a status.  
+- **/api/chatbot**  
+  • POST: Receive user query, lookup context data, forward to OpenAI, and return response.  
+- **/api/files/upload**  
+  • POST: Generate signed URL or direct-upload token for Supabase Storage.  
+- **/api/files/download**  
+  • GET: Generate secure download link for a stored file.
 
-- **Load Balancer**
-  - Provided by the hosting platform—distributes API requests across function instances.
+All APIs validate the Clerk-authenticated user and enforce role-based checks before database access.
 
-- **CDN (Content Delivery Network)**
-  - Vercel’s global edge network caches static assets (CSS, JS, images) for faster page loads.
+## Hosting Solutions
 
-- **Caching**
-  - **Redis** (optional) for session storage or caching dashboard queries to reduce database load.
+- **Vercel**  
+  • Hosts Next.js app with built-in support for serverless API routes.  
+  • Global CDN for static assets ensures low latency.  
+  • Seamless GitHub integration for continuous deployment.  
+- **Supabase**  
+  • Managed PostgreSQL database with automated backups and updates.  
+  • Realtime server for websockets and pub/sub.  
+  • Object storage for files.  
 
-- **Object Storage**
-  - For file uploads or backups, integrate with AWS S3 or similar services.
+Benefits:
 
-- **Message Queue**
-  - In future, use **RabbitMQ** or **Kafka** for background tasks (e.g., email notifications).
+- **Reliability:** Vercel’s serverless functions and Supabase’s SLA-backed services.  
+- **Scalability:** Auto-scaling serverless functions and horizontally scalable database architecture.  
+- **Cost-Effectiveness:** Generous free tiers and pay-as-you-go pricing.
 
-## 7. Security Measures
+## Infrastructure Components
 
-- **Authentication & Authorization**
-  - Passwords hashed with **bcrypt** and salted.  
-  - Session tokens stored in secure, HttpOnly cookies or Authorization headers.  
-  - Protected endpoints verify tokens before proceeding.
+- **Load Balancing & CDN**  
+  • Vercel’s edge network balances requests across regions.  
+- **Caching**  
+  • Edge caching for static assets.  
+  • Client-side caching with libraries like SWR or React Query.  
+- **Realtime Messaging**  
+  • Supabase Realtime (Postgres publications over websockets).  
+- **Serverless Functions**  
+  • Next.js API routes auto-deployed as lambdas on Vercel.  
+- **Storage**  
+  • Supabase Storage for file uploads, with RLS policies.
 
-- **Data Encryption**
-  - **HTTPS/TLS** encrypts data in transit.  
-  - Database connections use SSL to encrypt data between the app and the database.
+Together, these components ensure high performance, low latency, and a responsive user experience.
 
-- **Input Validation**
-  - Every incoming request is validated (e.g., valid email format, password length) to prevent SQL injection or other attacks.
+## Security Measures
 
-- **Web Security Best Practices**
-  - Enable **CORS** policies to limit allowed origins.  
-  - Use **CSRF tokens** or same-site cookies to prevent cross-site requests.  
-  - Set secure headers with **Helmet** or a similar middleware.
+- **Authentication & Authorization**  
+  • Clerk-managed user sign-in/up and session tokens.  
+  • Role-based access control via Clerk metadata and middleware.  
+- **Database Security**  
+  • Row-Level Security (RLS) policies in Postgres to enforce per-row permissions.  
+  • Least-privilege service role for Supabase client.  
+- **Data Encryption**  
+  • HTTPS/TLS in transit for all traffic.  
+  • Encryption at rest for Postgres data and storage objects.  
+- **Input Validation & File Sanitization**  
+  • Server-side checks on file type and size.  
+  • Sanitization of user-generated content to prevent XSS.
 
-## 8. Monitoring and Maintenance
+These measures protect user data and help meet compliance standards.
 
-- **Performance Monitoring**
-  - Integrate **Sentry** or **LogRocket** for real-time crash reporting and performance tracing.  
-  - Use Vercel’s built-in analytics to track request latencies and error rates.
+## Monitoring and Maintenance
 
-- **Logging**
-  - Structured logs (JSON) for all API requests and errors, shipped to a log management service like **Datadog** or **Logflare**.
+- **Logging & Error Tracking**  
+  • Vercel’s built-in logs for serverless functions.  
+  • Supabase Metrics and Logs in the dashboard.  
+  • Optional integration with Sentry for application error tracking.  
+- **Performance Monitoring**  
+  • Real-time metrics from Vercel (cold starts, latency).  
+  • Database performance insights from Supabase.  
+- **Backups & Updates**  
+  • Automated daily backups of the Postgres database.  
+  • Managed updates and security patches by Supabase.  
+- **CI/CD**  
+  • GitHub Actions (or Vercel’s built-in pipeline) for linting, testing, and deployment.
 
-- **Health Checks**
-  - Define a `/health` endpoint that returns a 200 status if the service is up and the database is reachable.
+Routine reviews of logs and metrics ensure reliability and quick issue resolution.
 
-- **Maintenance Strategies**
-  - Automated migrations run on deploy to keep the database schema up to date.  
-  - Scheduled dependency audits and security scans (e.g., `npm audit`).
-  - Regular backups of the database (daily or weekly depending on usage).
+## Conclusion and Overall Backend Summary
 
-## 9. Conclusion and Overall Backend Summary
+The backend is built on a flexible, serverless-first architecture using Next.js, Clerk, Supabase, and Vercel. It provides:
 
-The backend for **codeguide-starter** is built on Next.js API Routes and Node.js, paired with PostgreSQL for data and optional Redis for caching. It follows a clear layered architecture that keeps code easy to maintain and extend. With RESTful endpoints for authentication and data, secure practices like password hashing and HTTPS, and hosting on Vercel for scalability and global performance, this setup meets the project’s goals for a fast, secure, and developer-friendly foundation. Future enhancements—such as background job queues, advanced monitoring, or richer data models—can be added without disrupting the core structure.
+- **Robust Authentication** via Clerk with role-based access control.  
+- **Real-Time Communication** through Supabase Realtime for chat and feeds.  
+- **Scalable Data Storage** with managed Postgres and Storage.  
+- **Secure, Compliant Infrastructure** with TLS, RLS, and encryption.  
+- **Developer-Friendly Tooling** with Drizzle ORM, TypeScript, and serverless API routes.
+
+This setup aligns with the Labsync Chat Workflow’s goals: streamlined collaboration for lab teams, instant updates, AI-assisted information, and cost-effective file sharing—delivered reliably and securely at scale.

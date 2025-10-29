@@ -1,8 +1,6 @@
 "use client"
 
-import { useRouter } from "next/navigation"
-import { useState } from "react"
-import { signOut } from "@/lib/auth-client"
+import { useUser } from "@clerk/nextjs"
 import {
   IconCreditCard,
   IconDotsVertical,
@@ -32,34 +30,17 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-export function NavUser({
-  user,
-}: {
-  user: {
-    name: string
-    email: string
-    avatar: string
-  }
-}) {
+export function NavUser() {
   const { isMobile } = useSidebar()
-  const router = useRouter()
-  const [isSigningOut, setIsSigningOut] = useState(false)
+  const { user, isSignedIn } = useUser()
 
-  const handleSignOut = async () => {
-    setIsSigningOut(true)
-    try {
-      await signOut()
-      router.push("/")
-    } catch (error) {
-      console.error("Sign out error:", error)
-    } finally {
-      setIsSigningOut(false)
-    }
+  if (!isSignedIn || !user) {
+    return null
   }
 
-  const userInitials = user.name
-    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase()
-    : user.email[0].toUpperCase()
+  const userInitials = user.firstName && user.lastName
+    ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
+    : user.emailAddresses[0]?.emailAddress[0]?.toUpperCase() || "U"
 
   return (
     <SidebarMenu>
@@ -71,13 +52,13 @@ export function NavUser({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarImage src={user.imageUrl} alt={user.fullName || "User"} />
                 <AvatarFallback className="rounded-lg">{userInitials}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
+                <span className="truncate font-medium">{user.fullName || "User"}</span>
                 <span className="text-muted-foreground truncate text-xs">
-                  {user.email}
+                  {user.emailAddresses[0]?.emailAddress}
                 </span>
               </div>
               <IconDotsVertical className="ml-auto size-4" />
@@ -92,13 +73,13 @@ export function NavUser({
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatar} alt={user.name} />
+                  <AvatarImage src={user.imageUrl} alt={user.fullName || "User"} />
                   <AvatarFallback className="rounded-lg">{userInitials}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name}</span>
+                  <span className="truncate font-medium">{user.fullName || "User"}</span>
                   <span className="text-muted-foreground truncate text-xs">
-                    {user.email}
+                    {user.emailAddresses[0]?.emailAddress}
                   </span>
                 </div>
               </div>
@@ -119,9 +100,9 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleSignOut} disabled={isSigningOut}>
+            <DropdownMenuItem>
               <IconLogout />
-              {isSigningOut ? "Signing out..." : "Log out"}
+              Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

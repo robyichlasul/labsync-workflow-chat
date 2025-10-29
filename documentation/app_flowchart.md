@@ -1,14 +1,18 @@
 flowchart TD
-  Start[Landing Page]
-  SignUpPage[Sign Up Page]
-  SignInPage[Sign In Page]
-  AuthAPI[Authentication API Endpoint]
-  DashboardPage[Dashboard Page]
-  Start -->|Select Sign Up| SignUpPage
-  Start -->|Select Sign In| SignInPage
-  SignUpPage -->|Submit Credentials| AuthAPI
-  SignInPage -->|Submit Credentials| AuthAPI
-  AuthAPI -->|Success| DashboardPage
-  AuthAPI -->|Error| SignUpPage
-  AuthAPI -->|Error| SignInPage
-  DashboardPage -->|Click Logout| Start
+  A[User] --> B[SignIn]
+  B[SignIn] --> C[ClerkAuth]
+  C[ClerkAuth] --> D[Dashboard]
+  D[Dashboard] --> E[ChatInterface]
+  D[Dashboard] --> F[StatusFeed]
+  D[Dashboard] --> G[ChatbotWindow]
+  E[ChatInterface] --> H[SupabaseRealtime]
+  F[StatusFeed] --> H[SupabaseRealtime]
+  E[ChatInterface] --> I[SupabaseDB]
+  F[StatusFeed] --> I[SupabaseDB]
+  G[ChatbotWindow] --> J[APIChatbotRoute]
+  J[APIChatbotRoute] --> I[SupabaseDB]
+  J[APIChatbotRoute] --> K[AIService]
+  E[ChatInterface] --> L[FileUploadComponent]
+  L[FileUploadComponent] --> M[SupabaseStorage]
+  C[ClerkAuth] --> N[RoleManagement]
+  N[RoleManagement] -.-> I[SupabaseDB]
